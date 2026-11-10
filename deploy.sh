@@ -255,6 +255,7 @@ pull_code() {
   if [[ "$PREVIOUS_COMMIT" == "$(git rev-parse "$REMOTE/$BRANCH")" ]]; then
     if ! $FORCE && stack_running; then
       log "Already up to date at ${PREVIOUS_COMMIT:0:7}. Nothing to deploy (use --force to redeploy)."
+      if $INSTALL_CRON; then install_cron; fi
       exit 0
     fi
     return 0
