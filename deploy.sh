@@ -6,6 +6,7 @@
 #   -b, --branch NAME   Git branch to deploy (default: $DEPLOY_BRANCH or the current branch)
 #   -r, --remote NAME   Git remote to pull from (default: $DEPLOY_REMOTE or origin)
 #       --host ADDRESS  Public IP or hostname, used only when creating .env (default: auto-detected)
+#       --port PORT     Public HTTP port, used only when creating .env (default: 80)
 #       --install-cron  After deploying, add a cron job that auto-deploys new commits every 5 minutes
 #       --dev           Use the development compose files instead of production
 #       --no-pull       Skip git fetch/pull and deploy the current checkout
@@ -34,6 +35,7 @@ ORIGINAL_ARGS=("$@")
 BRANCH="${DEPLOY_BRANCH:-}"
 REMOTE="${DEPLOY_REMOTE:-origin}"
 PUBLIC_HOST="${DEPLOY_HOST:-}"
+PUBLIC_PORT="${DEPLOY_PORT:-80}"
 MODE=production
 PULL=true
 BUILD=true
@@ -84,6 +86,9 @@ parse_args() {
       --host)
         [[ $# -ge 2 ]] || die "$1 needs a value"
         PUBLIC_HOST="$2"; shift 2 ;;
+      --port)
+        [[ $# -ge 2 ]] || die "$1 needs a value"
+        PUBLIC_PORT="$2"; shift 2 ;;
       --install-cron) INSTALL_CRON=true; shift ;;
       --dev) MODE=development; shift ;;
       --no-pull) PULL=false; shift ;;
@@ -158,6 +163,7 @@ create_env() {
   local host="${PUBLIC_HOST:-$(detect_public_host)}"
   [[ -n "$host" ]] || die "Could not detect this server's public IP. Pass it with --host ADDRESS."
   local url="http://$host"
+  [[ "$PUBLIC_PORT" == 80 ]] || url+=":$PUBLIC_PORT"
 
   log "Creating .env for $url with generated secrets"
   cat > .env <<EOF
@@ -169,8 +175,9 @@ POSTGRES_DB=erp
 POSTGRES_USER=erp
 POSTGRES_PASSWORD=$(random_hex 16)
 
-# Public address of the app. nginx on port 80 serves the frontend and proxies
-# /api, /admin, /static and /media to Django.
+# Public address of the app. nginx on HTTP_PORT serves the frontend and proxies
+# /api, /admin, /static and /media to Django. Include the port in the URLs unless it is 80.
+HTTP_PORT=$PUBLIC_PORT
 FRONTEND_URL=$url
 BACKEND_URL=$url
 VITE_API_BASE_URL=$url
@@ -212,6 +219,20 @@ check_env() {
 
 stack_running() {
   [[ -n "$(compose ps -q --status running backend 2>/dev/null)" ]]
+}
+
+check_http_port() {
+  [[ "$MODE" == production ]] || return 0
+  command -v ss >/dev/null 2>&1 || return 0
+  # On redeploys our own frontend container already holds the port.
+  [[ -z "$(compose ps -q --status running frontend 2>/dev/null)" ]] || return 0
+
+  local port
+  port="$(env_value HTTP_PORT)"
+  port="${port:-80}"
+  if ss -ltn "sport = :$port" | tail -n +2 | grep -q .; then
+    die "Port $port is already in use on this server. In .env set HTTP_PORT to a free port and add it to FRONTEND_URL, BACKEND_URL and VITE_API_BASE_URL (e.g. http://HOST:8080), then run ./$SCRIPT_NAME --force."
+  fi
 }
 
 pull_code() {
@@ -346,6 +367,7 @@ main() {
   ensure_docker
   detect_compose
   check_env
+  check_http_port
 
   if $PULL; then pull_code; fi
   if $BUILD; then build_images; fi
@@ -360,7 +382,10 @@ main() {
 
   log "Deploy finished at $(git rev-parse --short HEAD 2>/dev/null || echo 'local files')"
   if [[ "$MODE" == production ]]; then
+    local port
+    port="$(env_value HTTP_PORT)"
     log "DYLY ERP is available at $(env_value FRONTEND_URL)"
+    log "If it does not open from other machines, allow it in the firewall: sudo ufw allow ${port:-80}/tcp"
   fi
 }
 
