@@ -12,7 +12,9 @@
 #       --no-pull       Skip git fetch/pull and deploy the current checkout
 #       --no-build      Reuse existing images instead of rebuilding
 #       --skip-migrate  Do not run database migrations
-#       --skip-backup   Do not back up the database before applying migrations
+#       --skip-backup   Do not back up the database before applying migrations or restoring
+#       --restore FILE  Replace the database with a backup (.sql.gz, .sql or pg_dump .dump),
+#                       then deploy the current checkout (implies --no-pull)
 #   -f, --force         Deploy even when the remote has no new commits
 #   -h, --help          Show this help
 #
@@ -23,8 +25,19 @@
 #
 # After editing .env, apply it with: ./deploy.sh --force
 #
-# Before pending migrations are applied, the database is dumped to
-# backups/db-<timestamp>.sql.gz. The newest $BACKUP_KEEP dumps are kept (default 10).
+# Migrations run only here, as a separate step before the new containers start:
+#   1. fail if models changed without migration files (or migrations conflict),
+#   2. list the pending migrations,
+#   3. dump the database to backups/db-<timestamp>.sql.gz and verify the dump,
+#   4. migrate with a lock timeout ($MIGRATION_LOCK_TIMEOUT, default 30s) so a
+#      migration waiting on a table lock cannot freeze the running app.
+# Until migrations succeed the old containers keep serving. On failure the log
+# prints the exact command to roll back code and database. The newest
+# $BACKUP_KEEP dumps are kept (default 10).
+#
+# Roll back to an earlier version (code and data):
+#   git checkout <commit> && ./deploy.sh --restore backups/db-<timestamp>.sql.gz
+#   (afterwards run "git checkout main" so auto-deploy resumes)
 
 set -Eeuo pipefail
 
@@ -43,6 +56,9 @@ MIGRATE=true
 BACKUP=true
 BACKUP_KEEP="${BACKUP_KEEP:-10}"
 BACKUP_FILE=""
+MIGRATION_LOCK_TIMEOUT="${MIGRATION_LOCK_TIMEOUT:-30s}"
+RESTORE_FILE=""
+MIGRATING=false
 INSTALL_CRON=false
 FORCE=false
 USE_SUDO=false
@@ -56,18 +72,28 @@ usage() { sed -n '2,/^$/{s/^# \{0,1\}//;p}' "$SCRIPT_DIR/$SCRIPT_NAME"; }
 as_root() { if ((EUID == 0)); then "$@"; else sudo "$@"; fi; }
 as_docker_user() { if $USE_SUDO; then sudo "$@"; else "$@"; fi; }
 compose() { as_docker_user "${COMPOSE[@]}" "$@"; }
+manage() { compose run --rm --no-deps -T backend python manage.py "$@"; }
 env_value() { sed -n "s/^$1=//p" .env | tail -n 1 | tr -d "\"'\r"; }
 random_hex() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }
 
 on_error() {
   local code=$?
   log "Deploy failed (exit $code)." >&2
-  if [[ -n "$PREVIOUS_COMMIT" ]]; then
-    log "Code before this deploy: ${PREVIOUS_COMMIT:0:7}. Roll back with: git checkout $PREVIOUS_COMMIT && ./$SCRIPT_NAME --no-pull" >&2
-    log "Rolling back code does not revert migrations that already ran." >&2
+  if $MIGRATING; then
+    log "Migrations did not finish. Containers that were already running keep serving the previous version." >&2
+    log "If it failed on a lock timeout, the database was busy; run ./$SCRIPT_NAME --force to retry." >&2
   fi
-  if [[ -n "$BACKUP_FILE" ]]; then
-    log "Database backup taken before migrations: $BACKUP_FILE" >&2
+
+  local code_changed=false
+  if [[ -n "$PREVIOUS_COMMIT" && "$PREVIOUS_COMMIT" != "$(git rev-parse HEAD 2>/dev/null)" ]]; then
+    code_changed=true
+  fi
+  if $code_changed && [[ -n "$BACKUP_FILE" ]]; then
+    log "Roll back code and database: git checkout $PREVIOUS_COMMIT && ./$SCRIPT_NAME --restore $BACKUP_FILE" >&2
+  elif $code_changed; then
+    log "Roll back code: git checkout $PREVIOUS_COMMIT && ./$SCRIPT_NAME --no-pull" >&2
+  elif [[ -n "$BACKUP_FILE" ]]; then
+    log "Database backup taken during this deploy: $BACKUP_FILE (restore with ./$SCRIPT_NAME --restore $BACKUP_FILE)" >&2
   fi
   if [[ ${#COMPOSE[@]} -gt 0 ]]; then
     log "Inspect logs with: ${COMPOSE[*]} logs --tail=100" >&2
@@ -95,6 +121,10 @@ parse_args() {
       --no-build) BUILD=false; shift ;;
       --skip-migrate) MIGRATE=false; shift ;;
       --skip-backup) BACKUP=false; shift ;;
+      --restore)
+        [[ $# -ge 2 ]] || die "$1 needs a value"
+        if [[ "$2" == /* ]]; then RESTORE_FILE="$2"; else RESTORE_FILE="$PWD/$2"; fi
+        PULL=false; shift 2 ;;
       -f|--force) FORCE=true; shift ;;
       -h|--help) usage; exit 0 ;;
       *) usage >&2; die "Unknown option: $1" ;;
@@ -279,19 +309,40 @@ build_images() {
   compose build --pull
 }
 
-run_migrations() {
+start_data_services() {
   log "Starting PostgreSQL and Redis"
   compose up -d --wait postgres redis
+}
 
+run_migrations() {
   log "Checking for model changes that are missing migrations"
-  compose run --rm --no-deps -T backend python manage.py makemigrations --check --dry-run
+  manage makemigrations --check --dry-run \
+    || die "Models changed without matching migration files, or migrations conflict. Run makemigrations locally, commit, push, then deploy again."
 
-  if compose run --rm --no-deps -T backend python manage.py migrate --check >/dev/null 2>&1; then
+  local plan pending
+  plan="$(manage showmigrations --plan)" \
+    || die "Could not read the migration state from the database (see the error above)."
+  pending="$(sed -n 's/^\[ \] *//p' <<< "$plan")"
+
+  if [[ -z "$pending" ]]; then
     log "No pending migrations"
   else
-    if $BACKUP; then backup_database; fi
-    log "Applying database migrations"
-    compose run --rm --no-deps -T backend python manage.py migrate --noinput
+    local names
+    mapfile -t names <<< "$pending"
+    log "Pending migrations (${#names[@]}):"
+    printf '    %s\n' "${names[@]}"
+    if $BACKUP; then
+      backup_database db
+    else
+      warn "Applying migrations without a backup (--skip-backup)."
+    fi
+
+    log "Applying database migrations (lock timeout $MIGRATION_LOCK_TIMEOUT)"
+    MIGRATING=true
+    compose run --rm --no-deps -T -e PGOPTIONS="-c lock_timeout=$MIGRATION_LOCK_TIMEOUT" \
+      backend python manage.py migrate --noinput
+    MIGRATING=false
+    log "Migrations applied"
   fi
 
   seed_superadmin
@@ -300,31 +351,69 @@ run_migrations() {
 seed_superadmin() {
   local has_superuser="from django.contrib.auth import get_user_model; import sys; sys.exit(0 if get_user_model().objects.filter(is_superuser=True).exists() else 3)"
   local code=0
-  compose run --rm --no-deps -T backend python manage.py shell -c "$has_superuser" >/dev/null 2>&1 || code=$?
+  manage shell -c "$has_superuser" >/dev/null 2>&1 || code=$?
   ((code == 3)) || return 0
 
   log "No Super Admin in the database; seeding the default account"
-  compose run --rm --no-deps -T backend python manage.py seed_superadmin
+  manage seed_superadmin
   warn "Log in and change the default Super Admin password now."
 }
 
+# Usage: backup_database PREFIX. Only "db" dumps are rotated, so a dump taken
+# before a restore is never pruned by later deploys.
 backup_database() {
+  local prefix="$1"
   mkdir -p backups
   local file
-  file="backups/db-$(date '+%Y%m%d-%H%M%S').sql.gz"
+  file="backups/$prefix-$(date '+%Y%m%d-%H%M%S').sql.gz"
 
   log "Backing up database to $file"
   # shellcheck disable=SC2016 # expanded by the shell inside the postgres container
-  compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$file.partial"
+  compose exec -T postgres sh -c 'pg_dump --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+    | gzip > "$file.partial"
+  gunzip -c "$file.partial" | tail -n 5 | grep -q 'PostgreSQL database dump complete' \
+    || { rm -f "$file.partial"; die "Database backup is incomplete; nothing was changed."; }
   mv "$file.partial" "$file"
   BACKUP_FILE="$file"
 
+  [[ "$prefix" == db ]] || return 0
   local backups=(backups/db-*.sql.gz)
   local excess=$((${#backups[@]} - BACKUP_KEEP))
   if ((excess > 0)); then
     log "Removing $excess old backup(s), keeping the newest $BACKUP_KEEP"
     rm -f -- "${backups[@]:0:excess}"
   fi
+}
+
+restore_database() {
+  local file="$RESTORE_FILE"
+  [[ -s "$file" ]] || die "Backup file is missing or empty: $file"
+  case "$file" in
+    *.sql.gz|*.sql|*.dump) ;;
+    *) die "Unsupported backup format: $file (expected .sql.gz, .sql or .dump)" ;;
+  esac
+  if [[ "$file" == *.sql.gz ]]; then
+    gunzip -t "$file" || die "Backup file is corrupt: $file"
+  fi
+
+  if $BACKUP; then backup_database pre-restore; fi
+
+  log "Stopping the app and replacing the database with $file"
+  compose stop frontend backend celery-worker celery-beat
+  # shellcheck disable=SC2016 # expanded by the shell inside the postgres container
+  compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d postgres \
+    -c "DROP DATABASE IF EXISTS \"$POSTGRES_DB\" WITH (FORCE)" \
+    -c "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\""'
+
+  # shellcheck disable=SC2016 # expanded by the shell inside the postgres container
+  local psql_restore='psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+    pg_restore_cmd='pg_restore --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+  case "$file" in
+    *.sql.gz) gunzip -c "$file" | compose exec -T postgres sh -c "$psql_restore" >/dev/null ;;
+    *.sql) compose exec -T postgres sh -c "$psql_restore" < "$file" >/dev/null ;;
+    *.dump) compose exec -T postgres sh -c "$pg_restore_cmd" < "$file" ;;
+  esac
+  log "Database restored from $file"
 }
 
 start_stack() {
@@ -372,6 +461,8 @@ main() {
 
   if $PULL; then pull_code; fi
   if $BUILD; then build_images; fi
+  if $MIGRATE || [[ -n "$RESTORE_FILE" ]]; then start_data_services; fi
+  if [[ -n "$RESTORE_FILE" ]]; then restore_database; fi
   if $MIGRATE; then run_migrations; fi
   start_stack
   verify_public_entrypoint

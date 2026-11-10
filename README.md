@@ -39,7 +39,16 @@ cd ~/dyly-erp
 ./deploy.sh --install-cron
 ```
 
-It installs Docker if needed, creates `.env` with generated secrets and the server's public IP, backs up the database before migrations, seeds the Super Admin on an empty database, and serves everything on port 80 (nginx proxies `/api`, `/admin`, `/static` and `/media` to Django). The cron job redeploys within 5 minutes of a new push. After editing `.env`, run `./deploy.sh --force`. See `./deploy.sh --help` for all options.
+It installs Docker if needed, creates `.env` with generated secrets and the server's public IP, seeds the Super Admin on an empty database, and serves everything on port 80, or `HTTP_PORT` from `.env` (nginx proxies `/api`, `/admin`, `/static` and `/media` to Django). The cron job redeploys within 5 minutes of a new push. After editing `.env`, run `./deploy.sh --force`. See `./deploy.sh --help` for all options.
+
+Migrations are applied only by `deploy.sh`, never on container start. Before applying them it lists the pending migrations and saves a verified dump to `backups/db-<timestamp>.sql.gz`; until they succeed the old containers keep serving. If a deploy fails, the log prints the exact rollback command, for example:
+
+```bash
+git checkout <previous-commit> && ./deploy.sh --restore backups/db-<timestamp>.sql.gz
+git checkout main   # afterwards, so auto-deploy resumes
+```
+
+Always create migrations locally (`python manage.py makemigrations`) and commit them; a deploy stops if models changed without a migration file.
 
 Copy environment defaults if you want a local env file. Compose already has development defaults, so this is optional:
 
