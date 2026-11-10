@@ -1,0 +1,49 @@
+.panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 120px;
+  justify-content: center;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+  color: #64748b;
+  border: 1px solid #e7edf4;
+}
+
+.compact,
+.compactError {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.compactError {
+  color: #b45309;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #dbe3ee;
+  border-top-color: #2f6fed;
+  animation: spin 0.8s linear infinite;
+}
+
+.errorDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d97706;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

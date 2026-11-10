@@ -1,0 +1,57 @@
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: #51617a;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.link:hover {
+  background: #f3f7fc;
+  color: #1d6ef5;
+}
+
+.active {
+  background: #1d6ef5;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(29, 110, 245, 0.28);
+}
+
+.active:hover {
+  background: #1a63db;
+  color: #fff;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 720px) {
+  .link {
+    width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

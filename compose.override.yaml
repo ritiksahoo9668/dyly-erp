@@ -1,0 +1,33 @@
+services:
+  frontend:
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+
+  backend:
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+  postgres:
+    ports:
+      - "5433:5432"
+
+  redis:
+    ports:
+      - "6380:6379"
+
+  celery-worker:
+    command: ["python", "manage.py", "celery_dev_worker"]
+    volumes:
+      - ./backend:/app
+
+  celery-beat:
+    volumes:
+      - ./backend:/app
+
+volumes:
+  frontend_node_modules:

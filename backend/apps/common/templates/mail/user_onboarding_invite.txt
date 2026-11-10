@@ -1,0 +1,17 @@
+{% autoescape off %}Hello {{ employee_name }},
+
+Your {{ brand_name }} account has been prepared.
+
+Login Email:
+{{ login_email }}
+
+Please open the link below to set your password and activate your account.
+
+Activate Account:
+{{ activation_url }}
+
+This link will expire in {{ expiry_hours }} hours and can be used only once.
+
+Regards,
+{{ brand_name }}
+{% endautoescape %}

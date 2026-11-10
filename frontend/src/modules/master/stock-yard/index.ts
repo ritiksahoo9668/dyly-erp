@@ -1,0 +1,1 @@
+export { StockYardPage } from "./StockYardPage";

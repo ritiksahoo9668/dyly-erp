@@ -1,0 +1,1 @@
+export { QcParameterPage } from "./QcParameterPage";

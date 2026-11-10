@@ -1,0 +1,1 @@
+export { DesignationPage } from "./DesignationPage";

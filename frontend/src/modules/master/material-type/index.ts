@@ -1,0 +1,1 @@
+export { MaterialTypePage } from "./MaterialTypePage";

@@ -1,0 +1,59 @@
+x-production: &production
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+x-django-production: &django-production
+  <<: *production
+  env_file: .env
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.production
+    DEBUG: "False"
+
+services:
+  postgres:
+    <<: *production
+
+  redis:
+    <<: *production
+
+  backend:
+    <<: *django-production
+    command:
+      [
+        "sh",
+        "-c",
+        "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120",
+      ]
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+
+  frontend:
+    <<: *production
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "80:80"
+    volumes:
+      - static_data:/usr/share/nginx/static:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+
+  celery-worker:
+    <<: *django-production
+    volumes:
+      - media_data:/app/media
+
+  celery-beat:
+    <<: *django-production
+
+volumes:
+  media_data:
+  static_data:

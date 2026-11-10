@@ -1,0 +1,14 @@
+{% extends "mail/base.html" %}
+{% block title %}Activate your {{ brand_name }} account{% endblock %}
+{% block preheader %}Your {{ brand_name }} account is ready. Set your password to activate it.{% endblock %}
+{% block content %}
+<p style="margin:0 0 16px;">Hello {{ employee_name }},</p>
+<p style="margin:0 0 16px;">Your {{ brand_name }} account has been prepared.</p>
+<p style="margin:0 0 4px;color:#64748b;font-size:13px;">Login Email</p>
+<p style="margin:0 0 16px;font-weight:600;">{{ login_email }}</p>
+<p style="margin:0;">Please use the button below to set your password and activate your account.</p>
+{% include "mail/_button.html" with url=activation_url label="Activate Account" %}
+<p style="margin:0 0 16px;font-size:13px;color:#64748b;">This link will expire in {{ expiry_hours }} hours and can be used only once. If the button does not work, copy this address into your browser:<br><span style="word-break:break-all;color:#1d6ef5;">{{ activation_url }}</span></p>
+<p style="margin:0;">Regards,<br>{{ brand_name }}</p>
+{% endblock %}
+{% block footer %}You received this email because an administrator created a {{ brand_name }} account for you. If you were not expecting it, you can ignore this email.{% endblock %}

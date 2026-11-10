@@ -1,0 +1,1 @@
+export { WeighBridgePage } from "./WeighBridgePage";

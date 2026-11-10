@@ -1,0 +1,1 @@
+export { FacilityPage } from "./FacilityPage";

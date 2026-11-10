@@ -1,0 +1,10 @@
+{% autoescape off %}{{ heading }}
+
+{{ message }}
+{% if action_url %}
+{{ action_label|default:"Open DYLY ERP" }}:
+{{ action_url }}
+{% endif %}
+Regards,
+{{ brand_name }}
+{% endautoescape %}

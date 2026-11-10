@@ -1,0 +1,12 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+extend-exclude = ["**/migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"config/settings/development.py" = ["E402", "F405"]
+"config/settings/production.py" = ["F405"]

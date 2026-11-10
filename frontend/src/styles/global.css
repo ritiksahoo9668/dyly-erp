@@ -1,0 +1,54 @@
+:root {
+  --erp-bg: #eef3f9;
+  --erp-surface: #ffffff;
+  --erp-text: #0f1b2d;
+  --erp-muted: #6b7c93;
+  --erp-border: #e4ebf4;
+  --erp-primary: #1d6ef5;
+  --erp-primary-soft: #e8f0fe;
+  --erp-success: #16a34a;
+  --erp-danger: #ef4444;
+  --erp-shadow: 0 10px 30px rgba(15, 35, 70, 0.08);
+  --erp-shadow-lg: 0 24px 60px rgba(15, 35, 70, 0.16);
+  --erp-radius: 18px;
+  --erp-radius-lg: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, "Segoe UI", sans-serif;
+  color: var(--erp-text);
+  background: var(--erp-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--erp-primary);
+  outline-offset: 2px;
+}

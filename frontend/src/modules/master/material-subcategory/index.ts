@@ -1,0 +1,1 @@
+export { MaterialSubcategoryPage } from "./MaterialSubcategoryPage";

@@ -1,0 +1,151 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--erp-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--erp-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.trigger:focus-visible,
+.triggerOpen {
+  outline: none;
+  border-color: #93b8fb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(29, 110, 245, 0.12);
+}
+
+.trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.triggerInvalid {
+  border-color: #fca5a5;
+}
+
+.value,
+.placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placeholder {
+  color: var(--erp-muted);
+}
+
+.chevron {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.triggerOpen .chevron {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--erp-border);
+  border-radius: 12px;
+  box-shadow: var(--erp-shadow-lg);
+}
+
+.panel .search {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--erp-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  font-size: 0.86rem;
+}
+
+.panel .search:focus {
+  outline: none;
+  border-color: #93b8fb;
+  background: #fff;
+  box-shadow: none;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--erp-text);
+  cursor: pointer;
+}
+
+.optionActive {
+  background: #eff6ff;
+}
+
+.optionSelected {
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--erp-muted);
+  font-weight: 500;
+}
+
+.clear {
+  border: 0;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.clear:hover {
+  background: #fef2f2;
+}
+
+.empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  color: var(--erp-muted);
+}

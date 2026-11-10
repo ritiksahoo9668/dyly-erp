@@ -1,0 +1,169 @@
+.section {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--erp-border);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  color: var(--erp-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.count {
+  min-width: 22px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--erp-border);
+  border-radius: 10px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--erp-text);
+  border-bottom: 1px solid var(--erp-border);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.inactive {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.muted {
+  margin: 0;
+  color: var(--erp-muted);
+  font-size: 0.85rem;
+}
+
+.error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chipInactive {
+  background: #f1f5f9;
+  color: #64748b;
+  text-decoration: line-through;
+}
+
+.formSection {
+  display: grid;
+  gap: 8px;
+}
+
+.namesField {
+  display: grid;
+  gap: 8px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--erp-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #93b8fb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(29, 110, 245, 0.12);
+}
+
+.addBtn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--erp-primary-soft);
+  color: var(--erp-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.addBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chipRemove {
+  margin-left: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.linkBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #1d4ed8;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}

@@ -1,0 +1,1 @@
+export { MaterialGroupPage } from "./MaterialGroupPage";

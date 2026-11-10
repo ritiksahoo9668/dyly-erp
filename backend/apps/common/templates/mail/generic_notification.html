@@ -1,0 +1,9 @@
+{% extends "mail/base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block preheader %}{{ heading }}{% endblock %}
+{% block content %}
+<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#0f172a;">{{ heading }}</h1>
+<p style="margin:0;">{{ message|linebreaksbr }}</p>
+{% if action_url %}{% include "mail/_button.html" with url=action_url label=action_label|default:"Open DYLY ERP" %}{% endif %}
+<p style="margin:16px 0 0;">Regards,<br>{{ brand_name }}</p>
+{% endblock %}
